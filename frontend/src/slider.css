@@ -1,0 +1,72 @@
+/* ── Range slider thumb styling for dual-thumb price filter ── */
+
+/* Both range inputs are stacked on top of each other.
+   The inputs themselves have pointer-events: none so clicking the track
+   doesn't accidentally jump a thumb. Only the thumbs themselves get
+   pointer-events: all so they can be dragged. */
+
+input[type="range"].price-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    pointer-events: none;
+    position: absolute;
+    width: 100%;
+    height: 24px;
+    margin: 0;
+    padding: 0;
+    outline: none;
+    z-index: 2;
+}
+
+/* Second range on top so its thumb is always draggable */
+input[type="range"].price-slider:last-of-type {
+    z-index: 3;
+}
+
+/* Webkit (Chrome / Safari) */
+input[type="range"].price-slider::-webkit-slider-runnable-track {
+    height: 6px;
+    background: linear-gradient(90deg, #e2e8f0, #cbd5e0);
+    border-radius: 3px;
+}
+
+input[type="range"].price-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #6366f1, #3b82f6);
+    border: 3px solid #fff;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
+    cursor: pointer;
+    pointer-events: all;
+    margin-top: -8px;
+    transition: transform 0.15s ease;
+    position: relative;
+    z-index: 5;
+}
+
+input[type="range"].price-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+}
+
+/* Firefox */
+input[type="range"].price-slider::-moz-range-track {
+    height: 6px;
+    background: linear-gradient(90deg, #e2e8f0, #cbd5e0);
+    border-radius: 3px;
+    border: none;
+}
+
+input[type="range"].price-slider::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #6366f1, #3b82f6);
+    border: 3px solid #fff;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
+    cursor: pointer;
+    pointer-events: all;
+}
