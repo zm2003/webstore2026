@@ -110,20 +110,26 @@ def google_login():
         user = connection.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
 
         if not user:
-            # Create new user as customer
+            # Automatically make the instructor an admin, otherwise customer
+            assigned_role = "admin" if email == "zqu001@mt.feitian.edu" else "customer"
             cursor = connection.cursor()
             cursor.execute(
                 "INSERT INTO users (email, name, role) VALUES (?, ?, ?)",
-                (email, name, "customer")
+                (email, name, assigned_role)
             )
             connection.commit()
             user_id = cursor.lastrowid
-            role = "customer"
+            role = assigned_role
         else:
             # User exists
             user_id = dict(user)["id"]
             role = dict(user)["role"]
-
+            
+            # Upgrade to admin if they logged in before this change was made
+            if email == "zqu001@mt.feitian.edu" and role != "admin":
+                connection.execute("UPDATE users SET role = 'admin' WHERE email = ?", (email,))
+                connection.commit()
+                role = "admin"
         connection.close()
 
         # Generate JWT token
