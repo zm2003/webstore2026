@@ -18,9 +18,14 @@ def make_admins():
             
             if user:
                 cursor.execute("UPDATE users SET role = 'admin' WHERE email = ?", (email,))
-                print(f"✅ Successfully upgraded {email} to admin!")
+                print(f"✅ Successfully upgraded existing user {email} to admin!")
             else:
-                print(f"⚠️ User {email} not found in database. They must log in at least once first!")
+                # Force insert them as admin so they have it immediately upon first login
+                cursor.execute(
+                    "INSERT INTO users (email, name, role) VALUES (?, ?, ?)",
+                    (email, email.split('@')[0], "admin")
+                )
+                print(f"✨ Successfully created new user {email} as admin!")
                 
         connection.commit()
         print("Done!")
