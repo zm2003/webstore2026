@@ -19,12 +19,9 @@ export default function Navbar() {
                     Cart {cartCount > 0 && <span style={styles.cartBadge}>{cartCount}</span>}
                 </Link>
                 <Link to="/checkout" style={location.pathname === '/checkout' ? styles.navLinkActive : styles.navLink}>Checkout</Link>
-                {user?.role === 'admin' && (
-                    <Link to="/admin" style={location.pathname === '/admin' ? styles.navLinkActive : styles.navLink}>Admin</Link>
-                )}
-                {(user?.role === 'admin' || user?.role === 'cashier') && (
-                    <Link to="/pos" style={location.pathname === '/pos' ? styles.navLinkActive : styles.navLink}>POS</Link>
-                )}
+                <Link to="/order-confirmation" style={location.pathname === '/order-confirmation' ? styles.navLinkActive : styles.navLink}>Confirm</Link>
+                <Link to="/admin" style={location.pathname === '/admin' ? styles.navLinkActive : styles.navLink}>Admin</Link>
+                <Link to="/pos" style={location.pathname === '/pos' ? styles.navLinkActive : styles.navLink}>POS</Link>
                 <Link to="/orders" style={location.pathname === '/orders' ? styles.navLinkActive : styles.navLink}>Orders</Link>
 
                 {user ? (
