@@ -27,7 +27,9 @@ from dotenv import load_dotenv
 
 import sqlite3
 import json
-from flask import Flask, jsonify, request
+import csv
+import io
+from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
@@ -480,6 +482,97 @@ def set_stock(product_id):
     except sqlite3.Error as e:
         connection.close()
         return jsonify({"error": str(e)}), 500
+
+
+# ------------------------------------------------------------------
+# Feature: Order Export to CSV  (Admin only)
+# ------------------------------------------------------------------
+
+@app.route("/api/orders/export", methods=["GET"])
+def export_orders_csv():
+    """Stream all orders + line items as a downloadable CSV file.
+
+    Admin-only: requires a valid JWT with role == 'admin'.
+
+    Columns:
+      Order ID, Date, Customer Name, Email, Phone,
+      Address, Total, Product Name, Qty, Unit Price, Line Total
+
+    Teaches: io.StringIO, csv.writer, Flask Response streaming.
+    """
+    # ── Auth: admin only ────────────────────────────────────────────
+    verify_jwt_in_request(optional=False)
+    claims = get_jwt()
+    if claims.get("role") != "admin":
+        return jsonify({"error": "Forbidden: admin access required"}), 403
+
+    connection = get_db_connection()
+    try:
+        # Single query: join orders → order_items for all rows
+        rows = connection.execute("""
+            SELECT
+                o.id          AS order_id,
+                o.created_at  AS date,
+                o.fullName    AS customer_name,
+                o.email,
+                o.phone,
+                o.address,
+                o.city,
+                o.state,
+                o.zip,
+                o.country,
+                o.total       AS order_total,
+                oi.name       AS product_name,
+                oi.quantity,
+                oi.price      AS unit_price
+            FROM orders o
+            LEFT JOIN order_items oi ON o.id = oi.order_id
+            ORDER BY o.created_at DESC, o.id, oi.id
+        """).fetchall()
+    finally:
+        connection.close()
+
+    # ── Build CSV in memory ─────────────────────────────────────────
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+
+    # Header row
+    writer.writerow([
+        "Order ID", "Date", "Customer Name", "Email", "Phone",
+        "Address", "City", "State", "ZIP", "Country",
+        "Order Total", "Product", "Qty", "Unit Price", "Line Total"
+    ])
+
+    # Data rows
+    for r in rows:
+        qty        = r["quantity"] or 0
+        unit_price = r["unit_price"] or 0
+        writer.writerow([
+            r["order_id"],
+            r["date"],
+            r["customer_name"] or "",
+            r["email"]         or "",
+            r["phone"]         or "",
+            r["address"]       or "",
+            r["city"]          or "",
+            r["state"]         or "",
+            r["zip"]           or "",
+            r["country"]       or "",
+            f"${r['order_total']:.2f}",
+            r["product_name"]  or "",
+            qty,
+            f"${unit_price:.2f}",
+            f"${qty * unit_price:.2f}",
+        ])
+
+    csv_output = buf.getvalue()
+    buf.close()
+
+    return Response(
+        csv_output,
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=orders_export.csv"}
+    )
 
 
 # ------------------------------------------------------------------

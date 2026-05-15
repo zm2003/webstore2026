@@ -62,6 +62,30 @@ export default function OrderHistoryPage() {
         fetchOrders(guestEmail);
     };
 
+    // ── Admin: download all orders as CSV ──
+    const handleExportCsv = async () => {
+        try {
+            const res = await fetch(getApiUrl('/api/orders/export'), {
+                headers: { 'Authorization': `Bearer ${user.token}` }
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                alert(err.error || 'Export failed');
+                return;
+            }
+            // Create a temporary download link and click it
+            const blob = await res.blob();
+            const url  = window.URL.createObjectURL(blob);
+            const a    = document.createElement('a');
+            a.href     = url;
+            a.download = 'orders_export.csv';
+            a.click();
+            window.URL.revokeObjectURL(url);
+        } catch {
+            alert('Network error — could not export CSV');
+        }
+    };
+
     // ── Guest view: email input form ──
     if (!user) {
         return (
@@ -102,12 +126,25 @@ export default function OrderHistoryPage() {
     return (
         <div style={styles.page}>
             <div style={styles.header}>
-                <h1 style={styles.title}>📦 Order History</h1>
-                <p style={styles.subtitle}>
-                    {user.role === 'admin'
-                        ? 'Viewing all store orders (Admin Access)'
-                        : 'Viewing your past orders'}
-                </p>
+                <div>
+                    <h1 style={styles.title}>📦 Order History</h1>
+                    <p style={styles.subtitle}>
+                        {user.role === 'admin'
+                            ? 'Viewing all store orders (Admin Access)'
+                            : 'Viewing your past orders'}
+                    </p>
+                </div>
+                {user.role === 'admin' && (
+                    <button
+                        id="export-csv-btn"
+                        onClick={handleExportCsv}
+                        style={styles.exportBtn}
+                        onMouseEnter={e => e.currentTarget.style.backgroundColor = '#276749'}
+                        onMouseLeave={e => e.currentTarget.style.backgroundColor = '#38a169'}
+                    >
+                        ⬇️ Export CSV
+                    </button>
+                )}
             </div>
 
             <div style={styles.container}>
@@ -187,7 +224,9 @@ const styles = {
     header: {
         maxWidth: '900px',
         margin: '0 auto 32px',
-        textAlign: 'center',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
     },
     title: {
         margin: '0 0 8px',
@@ -199,6 +238,19 @@ const styles = {
         margin: 0,
         fontSize: '16px',
         color: '#718096',
+    },
+    exportBtn: {
+        padding: '10px 20px',
+        fontSize: '15px',
+        fontWeight: '700',
+        color: '#fff',
+        backgroundColor: '#38a169',
+        border: 'none',
+        borderRadius: '8px',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        transition: 'background-color 0.2s',
     },
     container: {
         maxWidth: '900px',
