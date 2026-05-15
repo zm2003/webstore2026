@@ -38,10 +38,13 @@ from functools import wraps
 
 load_dotenv()
 
+from datetime import timedelta
+
 app = Flask(__name__)
 
 # Setup JWT manager
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "fallback-secret-if-missing")
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24)
 jwt = JWTManager(app)
 
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")

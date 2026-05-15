@@ -97,8 +97,14 @@ export default function POSPage() {
             });
 
             if (!res.ok) {
-                const errData = await res.json();
-                throw new Error(errData.error || 'Failed to place order');
+                let errMessage = `HTTP Error ${res.status}`;
+                try {
+                    const errData = await res.json();
+                    errMessage = errData.error || errData.msg || 'Failed to place order';
+                } catch (e) {
+                    // Fallback if response is not JSON
+                }
+                throw new Error(errMessage);
             }
 
             const data = await res.json();
