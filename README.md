@@ -4,8 +4,8 @@ A modern, responsive e-commerce web application designed for students to purchas
 
 ## Live Deployment
 
-- **Frontend URL**: `[Insert Vercel URL here]`
-- **Backend URL**: `[Insert PythonAnywhere URL here]`
+- **Frontend URL**: `https://webstore2026.vercel.app/`
+- **Backend URL**: `https://belle02.pythonanywhere.com`
 
 ## Screenshot
 
