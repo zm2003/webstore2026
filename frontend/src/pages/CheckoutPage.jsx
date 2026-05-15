@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../CartContext.jsx';
+import { useAuth } from '../AuthContext.jsx';
 import { getApiUrl } from '../utils/api.js';
 
 /* ── Helper: load saved shipping info ── */
@@ -14,6 +15,7 @@ function loadShippingInfo() {
 
 export default function CheckoutPage() {
     const { items, cartCount, cartTotal, clearCart } = useCart();
+    const { user } = useAuth();
     const navigate = useNavigate();
 
     const [form, setForm] = useState(loadShippingInfo);
@@ -70,9 +72,13 @@ export default function CheckoutPage() {
                 total: cartTotal,
             };
 
+            // Attach JWT if logged in — backend uses it to store verified email
+            const headers = { 'Content-Type': 'application/json' };
+            if (user?.token) headers['Authorization'] = `Bearer ${user.token}`;
+
             const res = await fetch(getApiUrl('/api/orders'), {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify(payload),
             });
 

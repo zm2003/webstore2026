@@ -45,8 +45,12 @@ jwt = JWTManager(app)
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 
 # Allow cross-origin requests
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",")
-CORS(app, origins=ALLOWED_ORIGINS)
+# In production, set ALLOWED_ORIGINS in your .env to your Vercel frontend URL.
+# Example: ALLOWED_ORIGINS=https://your-app.vercel.app
+# For local dev the default covers Vite's dev server.
+_origins_env = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
+ALLOWED_ORIGINS = _origins_env.split(",") if _origins_env != "*" else "*"
+CORS(app, origins=ALLOWED_ORIGINS, supports_credentials=True)
 
 # Path to the SQLite database file
 # You can change this in your .env file via DB_NAME=Product.db
@@ -194,6 +198,10 @@ def create_order():
         "items": [ { "id", "name", "price", "quantity", "image" }, ... ],
         "total": 123.45
     }
+
+    If the user sends a valid JWT (logged-in), their verified JWT email is used as the
+    stored order email so that GET /api/orders can reliably match it.
+    Guests fall back to the email they typed in the checkout form.
     """
     data = request.get_json()
     if not data:
@@ -206,18 +214,24 @@ def create_order():
     if not customer.get("fullName") or not items:
         return jsonify({"error": "Customer name and at least one item are required"}), 400
 
+    # Optional JWT — use the verified email from the token for logged-in users
+    verify_jwt_in_request(optional=True)
+    claims = get_jwt()  # empty dict if no JWT present
+    jwt_email = claims.get("email")
+    order_email = jwt_email if jwt_email else customer.get("email", "")
+
     connection = get_db_connection()
     try:
         cursor = connection.cursor()
 
-        # Insert order header
+        # Insert order header — use verified JWT email for logged-in users
         cursor.execute(
             """INSERT INTO orders (fullName, phone, email, address, city, state, zip, country, total)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 customer.get("fullName", ""),
                 customer.get("phone", ""),
-                customer.get("email", ""),
+                order_email,
                 customer.get("address", ""),
                 customer.get("city", ""),
                 customer.get("state", ""),
