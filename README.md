@@ -13,20 +13,20 @@ A modern, responsive e-commerce web application designed for students to purchas
 
 ## How to Run Locally
 
-Run the following three commands from the project root to start both the backend and frontend:
+Follow these steps to clone the repository and run the application on your local machine using three chained commands:
 
 ```bash
-# 1. Start the Flask backend (runs on port 5001)
-python backend/app.py &
+# 1. Clone the repository and enter the directory
+git clone https://github.com/zm2003/webstore2026.git && cd webstore2026
 
-# 2. Install frontend dependencies
-cd frontend && npm install
+# 2. Install backend dependencies and start the Flask API in the background (runs on port 5001)
+pip install flask flask-cors flask-jwt-extended google-auth && python backend/app.py &
 
-# 3. Start the Vite frontend dev server
-npm run dev
+# 3. Navigate to the frontend, install dependencies, and start the React app
+cd frontend && npm install && npm run dev
 ```
 
-*(Note: Make sure you have Python and Node.js installed. If you prefer to run them in separate terminals, run `python backend/app.py` in one terminal, and `cd frontend && npm run dev` in another.)*
+*(Note: Ensure you have Python and Node.js installed. For better visibility, you may run the backend and frontend commands in separate terminal windows by omitting the `&` at the end of command 2).*
 
 ## Feature Extensions Completed
 
