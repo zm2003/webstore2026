@@ -1,7 +1,31 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import {
+    Chart as ChartJS,
+    CategoryScale,
+    LinearScale,
+    PointElement,
+    LineElement,
+    Title,
+    Tooltip,
+    Legend,
+    Filler
+} from 'chart.js';
+import { Line } from 'react-chartjs-2';
 import useProducts from '../hooks/useProducts.js';
+import { useAuth } from '../AuthContext.jsx';
 import { getApiUrl } from '../utils/api.js';
+
+ChartJS.register(
+    CategoryScale,
+    LinearScale,
+    PointElement,
+    LineElement,
+    Title,
+    Tooltip,
+    Legend,
+    Filler
+);
 
 // ─────────────────────────────────────────────────────────
 // AdminDashboard – inventory management page
@@ -9,8 +33,11 @@ import { getApiUrl } from '../utils/api.js';
 
 export default function AdminDashboard() {
     const { products, loading, error, refresh } = useProducts();
+    const { user } = useAuth();
 
     // ── Local state ──
+    const [stats, setStats] = useState([]);
+    const [statsLoading, setStatsLoading] = useState(true);
     const [searchText, setSearchText] = useState('');
     const [categoryFilter, setCategoryFilter] = useState('all');
     const [stockFilter, setStockFilter] = useState('all');   // 'all' | 'low' | 'out'
@@ -55,6 +82,61 @@ export default function AdminDashboard() {
     const lowStockCount = products.filter((p) => p.stock > 0 && p.stock <= 5).length;
     const outOfStockCount = products.filter((p) => p.stock === 0).length;
     const onSaleCount = products.filter((p) => p.onSale).length;
+
+    // ── Fetch Stats ──
+    useEffect(() => {
+        const fetchStats = async () => {
+            if (!user?.token) return;
+            try {
+                const res = await fetch(getApiUrl('/api/orders/stats'), {
+                    headers: { 'Authorization': `Bearer ${user.token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setStats(data);
+                }
+            } catch (err) {
+                console.error("Failed to fetch stats:", err);
+            } finally {
+                setStatsLoading(false);
+            }
+        };
+        fetchStats();
+    }, [user]);
+
+    // ── Chart Data ──
+    const chartData = useMemo(() => {
+        return {
+            labels: stats.map(s => s.date),
+            datasets: [
+                {
+                    label: 'Revenue ($)',
+                    data: stats.map(s => s.revenue),
+                    borderColor: '#3182ce',
+                    backgroundColor: 'rgba(49, 130, 206, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4, // smooth curve
+                }
+            ]
+        };
+    }, [stats]);
+
+    const chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                callbacks: {
+                    label: (context) => `Revenue: $${context.raw.toFixed(2)}`
+                }
+            }
+        },
+        scales: {
+            y: { beginAtZero: true, ticks: { callback: (value) => '$' + value } }
+        }
+    };
 
     // ── API helpers ──
     const adjustStock = useCallback(async (id, delta) => {
@@ -190,6 +272,20 @@ export default function AdminDashboard() {
                 <div style={{ ...styles.card, borderLeft: '4px solid #38a169' }}>
                     <p style={styles.cardNumber}>{onSaleCount}</p>
                     <p style={styles.cardLabel}>On Sale 🏷️</p>
+                </div>
+            </div>
+
+            {/* ── Sales Chart ── */}
+            <div style={styles.chartCard}>
+                <h2 style={styles.chartTitle}>Revenue Over Time</h2>
+                <div style={styles.chartContainer}>
+                    {statsLoading ? (
+                        <p style={{ textAlign: 'center', color: '#718096', marginTop: '100px' }}>Loading chart...</p>
+                    ) : stats.length === 0 ? (
+                        <p style={{ textAlign: 'center', color: '#718096', marginTop: '100px' }}>No sales data available yet.</p>
+                    ) : (
+                        <Line data={chartData} options={chartOptions} />
+                    )}
                 </div>
             </div>
 
@@ -548,6 +644,26 @@ const styles = {
         color: '#718096',
         margin: '4px 0 0',
         fontWeight: '600',
+    },
+
+    /* Chart Card */
+    chartCard: {
+        backgroundColor: '#fff',
+        borderRadius: '12px',
+        padding: '24px',
+        boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
+        maxWidth: '1200px',
+        margin: '0 auto 28px',
+    },
+    chartTitle: {
+        fontSize: '18px',
+        fontWeight: '700',
+        color: '#1a202c',
+        margin: '0 0 16px',
+    },
+    chartContainer: {
+        height: '300px',
+        width: '100%',
     },
 
     /* Filters row */

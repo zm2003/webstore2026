@@ -576,6 +576,39 @@ def export_orders_csv():
 
 
 # ------------------------------------------------------------------
+# Feature: Sales Dashboard (Admin only)
+# ------------------------------------------------------------------
+
+@app.route("/api/orders/stats", methods=["GET"])
+def get_order_stats():
+    """Return sales grouped by day for the admin dashboard chart.
+
+    Admin-only: requires a valid JWT with role == 'admin'.
+    """
+    verify_jwt_in_request(optional=False)
+    claims = get_jwt()
+    if claims.get("role") != "admin":
+        return jsonify({"error": "Forbidden: admin access required"}), 403
+
+    connection = get_db_connection()
+    try:
+        # Group by the date part of created_at
+        rows = connection.execute("""
+            SELECT
+                DATE(created_at) AS date,
+                SUM(total) AS revenue,
+                COUNT(id) AS orders
+            FROM orders
+            GROUP BY DATE(created_at)
+            ORDER BY date ASC
+        """).fetchall()
+    finally:
+        connection.close()
+
+    return jsonify([dict(r) for r in rows])
+
+
+# ------------------------------------------------------------------
 # Main guard
 # ------------------------------------------------------------------
 
