@@ -1,11 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import useProducts from '../hooks/useProducts.js';
+import { useAuth } from '../AuthContext.jsx';
 import { getApiUrl } from '../utils/api.js';
 
 export default function POSPage() {
     const { products, loading, error, refresh } = useProducts();
+    const { user } = useAuth();
     const [posCart, setPosCart] = useState([]);
     const [customerName, setCustomerName] = useState('Walk-in Customer');
+    const [discountPercent, setDiscountPercent] = useState(0);
     const [categoryFilter, setCategoryFilter] = useState('all');
     const [isProcessing, setIsProcessing] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -65,6 +68,7 @@ export default function POSPage() {
     };
 
     const cartTotal = posCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const discountedTotal = cartTotal * (1 - (discountPercent / 100));
 
     const handleCheckout = async () => {
         if (posCart.length === 0) {
@@ -78,13 +82,17 @@ export default function POSPage() {
 
         setIsProcessing(true);
         try {
-            const res = await fetch(getApiUrl('/api/orders'), {
+            const res = await fetch(getApiUrl('/api/pos/sale'), {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${user.token}`
+                },
                 body: JSON.stringify({
                     customer: { fullName: customerName },
                     items: posCart,
-                    total: cartTotal
+                    subtotal: cartTotal,
+                    discount_percent: discountPercent
                 })
             });
 
@@ -94,11 +102,12 @@ export default function POSPage() {
             }
 
             const data = await res.json();
-            alert(`Order successful! Order ID: ${data.orderNumber}`);
+            alert(`Order successful! Order ID: ${data.orderNumber}\nSubtotal: $${data.subtotal.toFixed(2)}\nDiscount: ${data.discount_percent}%\nFinal Total: $${data.total.toFixed(2)}`);
             
             // Reset POS state
             setPosCart([]);
             setCustomerName('Walk-in Customer');
+            setDiscountPercent(0);
             // Refresh products to show updated stock
             await refresh();
         } catch (err) {
@@ -181,6 +190,20 @@ export default function POSPage() {
                         onChange={(e) => setCustomerName(e.target.value)}
                     />
                 </div>
+                
+                {user?.role === 'admin' && (
+                    <div style={styles.customerInputGroup}>
+                        <label style={styles.label}>Admin Discount (%):</label>
+                        <input 
+                            type="number"
+                            min="0"
+                            max="100"
+                            style={styles.input}
+                            value={discountPercent}
+                            onChange={(e) => setDiscountPercent(parseInt(e.target.value) || 0)}
+                        />
+                    </div>
+                )}
 
                 <div style={styles.cartItemsList}>
                     {posCart.length === 0 ? (
@@ -207,8 +230,18 @@ export default function POSPage() {
 
                 <div style={styles.cartFooter}>
                     <div style={styles.totalRow}>
-                        <span>Total:</span>
+                        <span>Subtotal:</span>
                         <span>${cartTotal.toFixed(2)}</span>
+                    </div>
+                    {discountPercent > 0 && (
+                        <div style={{...styles.totalRow, color: '#e53e3e', fontSize: '18px', marginTop: '-10px'}}>
+                            <span>Discount ({discountPercent}%):</span>
+                            <span>-${(cartTotal - discountedTotal).toFixed(2)}</span>
+                        </div>
+                    )}
+                    <div style={styles.totalRow}>
+                        <span>Total:</span>
+                        <span>${discountedTotal.toFixed(2)}</span>
                     </div>
                     <button 
                         style={styles.checkoutBtn} 

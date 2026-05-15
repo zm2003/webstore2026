@@ -286,6 +286,92 @@ def create_order():
         connection.close()
 
 
+@app.route("/api/pos/sale", methods=["POST"])
+def pos_sale():
+    """
+    Create a new POS sale with an optional bulk discount.
+    Requires admin or cashier role.
+
+    Expected JSON body:
+    {
+        "customer": { "fullName": "Walk-in Customer" },
+        "items": [ { "id", "name", "price", "quantity", "image" }, ... ],
+        "subtotal": 100.00,
+        "discount_percent": 15
+    }
+    """
+    verify_jwt_in_request(optional=False)
+    claims = get_jwt()
+    if claims.get("role") not in ["admin", "cashier"]:
+        return jsonify({"error": "Forbidden: POS access required"}), 403
+
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Request body is required"}), 400
+
+    customer = data.get("customer", {})
+    items = data.get("items", [])
+    subtotal = float(data.get("subtotal", 0))
+    discount_percent = float(data.get("discount_percent", 0))
+
+    if not customer.get("fullName") or not items:
+        return jsonify({"error": "Customer name and at least one item are required"}), 400
+
+    # Calculate final total
+    total = subtotal * (1 - (discount_percent / 100.0))
+    
+    # We still store it in the orders table
+    order_email = claims.get("email", "")
+
+    connection = get_db_connection()
+    try:
+        cursor = connection.cursor()
+
+        # Insert order header
+        cursor.execute(
+            """INSERT INTO orders (fullName, phone, email, address, city, state, zip, country, total)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                customer.get("fullName", ""),
+                customer.get("phone", ""),
+                order_email,
+                "", "", "", "", "",
+                total,
+            ),
+        )
+        order_id = cursor.lastrowid
+
+        # Insert order items
+        for item in items:
+            cursor.execute(
+                """INSERT INTO order_items (order_id, product_id, name, price, quantity, image)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (
+                    order_id,
+                    item.get("id", 0),
+                    item.get("name", ""),
+                    item.get("price", 0),
+                    item.get("quantity", 1),
+                    item.get("image", ""),
+                ),
+            )
+
+        connection.commit()
+        return jsonify({
+            "orderId": order_id, 
+            "orderNumber": f"ORD-{order_id:05d}",
+            "subtotal": subtotal,
+            "discount_percent": discount_percent,
+            "total": total
+        }), 201
+
+    except sqlite3.Error as e:
+        connection.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        connection.close()
+
+
 @app.route("/api/orders", methods=["GET"])
 def get_orders():
     """
