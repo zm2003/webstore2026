@@ -161,12 +161,29 @@ def health():
 
 @app.route("/api/products", methods=["GET"])
 def get_products():
-    """Return ALL products from the database as a JSON list."""
+    """Return products from the database.
+
+    Optional query param:
+      ?q=keyword  — filters by name OR description using SQL LIKE (case-insensitive).
+                    Returns all products when omitted.
+
+    Example:
+      GET /api/products          → all products
+      GET /api/products?q=laptop → products where name or description contains "laptop"
+    """
+    q = request.args.get("q", "").strip()
+
     connection = get_db_connection()
-    rows = connection.execute("SELECT * FROM products").fetchall()
+    if q:
+        pattern = f"%{q}%"
+        rows = connection.execute(
+            "SELECT * FROM products WHERE name LIKE ? OR description LIKE ?",
+            (pattern, pattern)
+        ).fetchall()
+    else:
+        rows = connection.execute("SELECT * FROM products").fetchall()
     connection.close()
 
-    # Convert each row to a dict and return as JSON
     products = [row_to_dict(row) for row in rows]
     return jsonify(products)
 

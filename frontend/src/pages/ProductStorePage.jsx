@@ -4,6 +4,7 @@ import ProductCard from './ProductCard.jsx';
 import ProductGrid from './ProductGrid.jsx';
 import { useCart } from '../CartContext.jsx';
 import useProducts from '../hooks/useProducts.js';
+import { getApiUrl } from '../utils/api.js';
 import '../slider.css';
 
 export default function ProductStorePage() {
@@ -12,6 +13,8 @@ export default function ProductStorePage() {
 
     const [searchText, setSearchText] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
+    const [searchResults, setSearchResults] = useState(null); // null = not searching
+    const [searchLoading, setSearchLoading] = useState(false);
     const [activeFilter, setActiveFilter] = useState('all');
     const [sortBy, setSortBy] = useState('default');
     const [priceMin, setPriceMin] = useState(0);
@@ -43,30 +46,39 @@ export default function ProductStorePage() {
         [products]
     );
 
-    // ── Debounce: update results as user types, with a small delay ──
+    // ── Debounce: wait 300ms after user stops typing ──
     useEffect(() => {
         const timer = setTimeout(() => {
             setDebouncedSearch(searchText);
-        }, 250);
+        }, 300);
         return () => clearTimeout(timer);
     }, [searchText]);
 
-    // ── Filter + Sort logic ──
-    const filteredProducts = useMemo(() => {
-        let result = products;
-
-        // Search filter
-        if (debouncedSearch.trim()) {
-            const q = debouncedSearch.toLowerCase();
-            result = result.filter(
-                (p) =>
-                    p.name.toLowerCase().includes(q) ||
-                    p.category.toLowerCase().includes(q) ||
-                    (p.description || '').toLowerCase().includes(q)
-            );
+    // ── Backend search: hit /api/products?q=... when debouncedSearch changes ──
+    useEffect(() => {
+        if (!debouncedSearch.trim()) {
+            setSearchResults(null); // back to showing all products
+            setSearchLoading(false);
+            return;
         }
+        setSearchLoading(true);
+        fetch(getApiUrl(`/api/products?q=${encodeURIComponent(debouncedSearch.trim())}`))
+            .then(res => res.json())
+            .then(data => {
+                setSearchResults(data);
+                setSearchLoading(false);
+            })
+            .catch(() => setSearchLoading(false));
+    }, [debouncedSearch]);
 
-        // Category filter
+    // ── Filter + Sort logic ──
+    // baseProducts: backend search results when searching, all products otherwise
+    const baseProducts = searchResults !== null ? searchResults : products;
+
+    const filteredProducts = useMemo(() => {
+        let result = baseProducts;
+
+        // Category filter (applied on top of backend search results)
         if (activeFilter !== 'all') {
             result = result.filter((p) => p.category === activeFilter);
         }
@@ -95,7 +107,7 @@ export default function ProductStorePage() {
         }
 
         return result;
-    }, [products, debouncedSearch, activeFilter, priceMin, priceMax, sortBy, PRICE_MIN, PRICE_MAX]);
+    }, [baseProducts, activeFilter, priceMin, priceMax, sortBy, PRICE_MIN, PRICE_MAX]);
 
     const scrollToProducts = () => {
         document.getElementById('products-grid').scrollIntoView({ behavior: 'smooth' });
@@ -261,9 +273,12 @@ export default function ProductStorePage() {
                 {/* ── Results summary ── */}
                 {isFiltered && (
                     <p style={styles.resultsSummary}>
-                        {filteredProducts.length} result{filteredProducts.length !== 1 ? 's' : ''}
-                        {isSearching && <> for "<strong>{debouncedSearch}</strong>"</>}
-                        {activeFilter !== 'all' && <> in <strong>{activeFilter}</strong></>}
+                        {searchLoading
+                            ? '🔍 Searching...'
+                            : <>{filteredProducts.length} result{filteredProducts.length !== 1 ? 's' : ''}
+                                {isSearching && <> for "<strong>{debouncedSearch}</strong>" <span style={{fontSize:'11px',color:'#a0aec0'}}>(via database)</span></>}
+                                {activeFilter !== 'all' && <> in <strong>{activeFilter}</strong></>}
+                            </>}
                     </p>
                 )}
 
