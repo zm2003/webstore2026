@@ -111,7 +111,8 @@ def google_login():
 
         if not user:
             # Automatically make the instructor an admin, otherwise customer
-            assigned_role = "admin" if email == "zqu001@mt.feitian.edu" else "customer"
+            admin_emails = ["zqu001@mt.feitian.edu", "wymdbq555@gmail.com"]
+            assigned_role = "admin" if email in admin_emails else "customer"
             cursor = connection.cursor()
             cursor.execute(
                 "INSERT INTO users (email, name, role) VALUES (?, ?, ?)",
@@ -126,7 +127,8 @@ def google_login():
             role = dict(user)["role"]
             
             # Upgrade to admin if they logged in before this change was made
-            if email == "zqu001@mt.feitian.edu" and role != "admin":
+            admin_emails = ["zqu001@mt.feitian.edu", "wymdbq555@gmail.com"]
+            if email in admin_emails and role != "admin":
                 connection.execute("UPDATE users SET role = 'admin' WHERE email = ?", (email,))
                 connection.commit()
                 role = "admin"
