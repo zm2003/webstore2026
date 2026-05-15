@@ -20,7 +20,7 @@ Follow these steps to clone the repository and run the application on your local
 git clone https://github.com/zm2003/webstore2026.git && cd webstore2026
 
 # 2. Install backend dependencies and start the Flask API in the background (runs on port 5001)
-pip install flask flask-cors flask-jwt-extended google-auth && python backend/app.py &
+pip install -r backend/requirements.txt && python backend/app.py &
 
 # 3. Navigate to the frontend, install dependencies, and start the React app
 cd frontend && npm install && npm run dev
