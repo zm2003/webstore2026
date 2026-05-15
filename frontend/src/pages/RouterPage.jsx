@@ -10,6 +10,7 @@ const pages = [
     { path: '/admin', title: '⚙️ Admin Dashboard', description: 'Manage inventory and edit products.', color: '#e53e3e' },
     { path: '/pos', title: '📠 POS System', description: 'Point of sale interface for staff.', color: '#38b2ac' },
     { path: '/orders', title: '📦 Order History', description: 'View past orders (customers see their own; admins see all).', color: '#805ad5' },
+    { path: '/login', title: '🔑 Login', description: 'Sign in with your Google account.', color: '#ecc94b' },
 ];
 
 export default function RouterPage() {
